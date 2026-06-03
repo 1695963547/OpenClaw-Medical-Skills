@@ -1,0 +1,86 @@
+# ─────────────────────────────────────────────────────────────────────
+#  OpenClaw-Medical-Skills 项目依赖清单（pip 部分）
+# ─────────────────────────────────────────────────────────────────────
+#  适用环境：conda activate longxia
+#  安装方式（进入 longxia 虚拟环境后执行）：
+#      pip install -r requirements.txt
+#
+#  本清单设计原则：
+#    1. 只列项目运行必需的 pip 依赖（conda 部分由 environment.yml 负责）
+#    2. 用 >= 约束而不是 ==，便于接收方按需升级到更新稳定版
+#    3. 分 4 组：核心 / 隐式 / 可观测 / 兼容垫片，每组带中文注释
+#    4. 版本基线对齐 longxia 环境实测版本（2026-06-02 验证）
+#
+#  完整 Conda 环境还原（推荐）：
+#    conda env create -f environment.yml
+#  仅补装 pip 包（如果 conda env 已有但缺少新依赖）：
+#    pip install -r requirements.txt
+# ─────────────────────────────────────────────────────────────────────
+
+
+# ═══════════════════════════════════════════════════════════
+#  1. 核心依赖（项目代码直接 import，禁止移除）
+# ═══════════════════════════════════════════════════════════
+
+# LLM 与智能体框架
+langgraph>=0.2.0              # LangGraph 状态机（图构建、消息累加、检查点）
+langchain-core>=0.3.0         # LangChain 消息类型、ToolMessage、SystemMessage
+langchain-openai>=0.2.0       # ChatOpenAI（兼容 OpenAI 协议，支持各类网关）
+openai>=1.0.0                 # openai SDK（langchain-openai 底层依赖）
+
+# 向量数据库 + 嵌入模型
+chromadb>=0.5.0               # ChromaDB 持久化（技能语义检索后端）
+sentence-transformers>=3.0.0  # 向量嵌入模型（MiniLM-L12-v2 多语言嵌入）
+
+# 通用工具
+PyYAML>=6.0                   # YAML 解析（脚本 benchmark_test、skill_audit）
+httpx>=0.27.0                 # 异步 HTTP 客户端（llm_factory 显式注入超时）
+
+
+# ═══════════════════════════════════════════════════════════
+#  2. 隐式依赖（不直接 import，但运行时必需；缺失会 ImportError）
+# ═══════════════════════════════════════════════════════════
+
+pydantic>=2.0                 # LangChain / LangGraph 全部数据模型的基座
+typing-extensions>=4.0        # LangChain 大量使用新型类型注解
+tenacity>=8.0                 # LangChain 内部重试机制
+tiktoken>=0.7                 # OpenAI tokenizer（langchain-openai 必需）
+numpy>=1.24                   # 向量计算基础（sentence-transformers 依赖）
+requests>=2.31                # HTTP 请求（execute_code 子进程注入、ChromaDB）
+
+
+# ═══════════════════════════════════════════════════════════
+#  3. 可观测 / 调试（可选，不影响主流程）
+# ═══════════════════════════════════════════════════════════
+
+langsmith>=0.1.0              # LangSmith 链路追踪（需配合 LANGSMITH_API_KEY）
+
+
+# ═══════════════════════════════════════════════════════════
+#  4. 兼容垫片（解决 longxia 环境的特定版本约束）
+# ═══════════════════════════════════════════════════════════
+
+# chromadb 1.x 已移除部分老 API；如对接旧版客户端需 pin 0.5.x
+# sentence-transformers 5.x 要求 transformers >= 4.41，否则降级
+# 如果遇到 chromadb / sentence-transformers 冲突，可改用：
+#     chromadb>=0.5.0,<1.0.0
+#     sentence-transformers>=3.0.0,<5.0.0
+
+
+# ─────────────────────────────────────────────────────────────────────
+#  版本基线参考（longxia 实测 2026-06-02，仅供接收方对照，不强制）
+# ─────────────────────────────────────────────────────────────────────
+#    langchain-core        1.4.0
+#    langchain-openai      1.2.2
+#    langgraph             1.2.1
+#    chromadb              1.5.9
+#    sentence-transformers 5.5.1
+#    openai                2.38.0
+#    pydantic              2.12.3
+#    numpy                 2.4.6
+#    httpx                 0.28.1
+#    PyYAML                6.0.3
+#    tiktoken              0.12.0
+#    requests              2.33.1
+#    tenacity              9.1.4
+# ─────────────────────────────────────────────────────────────────────

@@ -1,0 +1,24 @@
+# File-type specific Git attributes for OpenClaw-Medical-Skills.
+#
+# Note: This project intentionally does NOT use Git LFS.
+# Large binary artifacts (ChromaDB, logs, caches) are excluded via .gitignore.
+# The repo is kept lean so clones work on any network.
+
+# Ensure consistent line endings for cross-platform text files
+*.md       text eol=lf
+*.py       text eol=lf
+*.json     text eol=lf
+*.yml      text eol=lf
+*.yaml     text eol=lf
+*.sh       text eol=lf
+*.txt      text eol=lf
+
+# Mark binary files to avoid line-ending churn
+*.png      binary
+*.jpg      binary
+*.jpeg     binary
+*.gif      binary
+*.pdf      binary
+*.zip      binary
+*.tar      binary
+*.gz       binary
