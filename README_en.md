@@ -18,13 +18,27 @@
 
 ---
 
+## Background
+
+General-purpose LLMs face two core challenges in medical settings:
+
+> **Challenge 1: Difficulty accessing specialized domain knowledge**
+> General LLMs lack connections to real medical databases (PubMed, ClinicalTrials.gov, ChEMBL, etc.) and can only answer based on static training knowledge — making them incapable of real-time clinical and research queries.
+
+> **Challenge 2: Unstable reasoning chains**
+> For complex multi-step biomedical tasks (RNA-seq workflows, variant annotation, protein structure prediction), general LLMs suffer from hallucinations, missed steps, and code execution failures, with no systematic self-healing mechanisms.
+
+This project was built **from scratch** as an enterprise AGI strategic initiative to solve both challenges through a LangGraph orchestration framework combined with 869 specialized biomedical skills — delivering an autonomous AI agent that can "reason, execute, and understand medicine."
+
+---
+
 ## Overview
 
-OpenClaw Medical Skills is an autonomous medical AI agent platform that transforms a general-purpose LLM into a specialized medical and scientific research assistant. It integrates **869 curated biomedical skills** — covering clinical workflows, genomics, drug discovery, and bioinformatics — into a unified LangGraph-based agent framework.
+OpenClaw Medical Skills transforms a general-purpose LLM into a specialized medical and scientific research assistant. It integrates **869 curated biomedical skills** — covering clinical workflows, genomics, drug discovery, and bioinformatics — into a unified LangGraph agent framework.
 
-The agent autonomously retrieves relevant skills via semantic search, generates multi-step execution plans, executes code in a sandboxed environment, and self-heals from errors — all within an interactive conversational interface.
+The agent autonomously retrieves relevant skills via semantic search, generates multi-step execution plans, executes code in a sandboxed environment, and self-heals from errors — all without human intervention.
 
-### Key Capabilities
+### Capability Comparison
 
 | Without This Platform | With This Platform |
 |---|---|
@@ -37,7 +51,24 @@ The agent autonomously retrieves relevant skills via semantic search, generates 
 
 ---
 
+## Core Features
+
+| Feature | Description |
+|---------|-------------|
+| 🧠 **Autonomous Skill Retrieval** | Semantically retrieves the most relevant skills before every conversation — no manual skill selection needed |
+| 📋 **Multi-Step Planning** | Automatically decomposes complex tasks into structured subtasks with real-time progress display |
+| 🛡️ **5-Layer Error Resilience** | Covers 13 error types — agent automatically switches strategies under API failures |
+| 🔒 **Safe Code Execution** | AST static analysis + path/command whitelists + per-session venv isolation |
+| 💬 **Multi-Turn Memory** | MemorySaver persists conversation context across turns within the same session |
+| 🔄 **Stuck Soft-Landing** | Stuck Detector triggers graceful degradation instead of infinite retry loops |
+| 📊 **Automated Benchmarking** | Built-in LAB-Bench / TRQA evaluation with checkpoint resume and LLM-as-Judge scoring |
+| 🔌 **Multi-Model Compatible** | Supports DeepSeek V3/V4, GLM-4.6, and any OpenAI-compatible API |
+
+---
+
 ## Architecture
+
+### System Architecture
 
 The agent is built on a **LangGraph 5-node state graph** with conditional routing:
 
@@ -69,11 +100,29 @@ The agent is built on a **LangGraph 5-node state graph** with conditional routin
 |------|----------|
 | **auto_retrieve** | Pre-loads relevant skills via ChromaDB semantic search before LLM decision |
 | **agent** | LLM decision core — decides whether to call tools or respond directly |
-| **tools** | Executes tool calls: `retrieve_skills`, `read_file`, `execute_code`, `update_task_status` |
+| **tools** | Executes: `retrieve_skills`, `read_file`, `execute_code`, `update_task_status` |
 | **post_tools** | Error classification (13 types), correction injection, stuck detection, subtask tracking |
 | **planner** | Generates structured multi-step execution plans for complex tasks |
 
-### Design Features
+### Key Design Decisions
+
+**1. Why LangGraph instead of simple chains?**
+
+Simple chains are static — they can't handle the dynamic decision-making required for medical tasks ("should I query the database again?", "how to recover from a code error?"). LangGraph's stateful graph enables true autonomous loop reasoning with dynamic routing based on execution results.
+
+**2. Why pre-retrieve skills before LLM decision (auto_retrieve)?**
+
+Without context, LLMs often choose to answer directly rather than invoke tools, missing the opportunity to use specialized skills. The `auto_retrieve` node proactively injects the most relevant skills into the System Prompt at the start of every conversation, dramatically increasing the probability that the LLM selects the right tool — a proactive improvement over standard RAG.
+
+**3. Why 5-layer error resilience instead of simple retries?**
+
+Medical APIs (NCBI, ChEMBL, UniProt, etc.) fail in many ways: authentication errors, schema changes, missing dependencies — each requiring a different strategy. Simple retries only handle transient failures. Layered resilience uses error memory to avoid repeated mistakes and strategy escalation to progressively degrade, maximizing task completion rates.
+
+**4. Why a dedicated planner node?**
+
+For simple Q&A, the `agent` node can respond directly. But for complex tasks like "analyze this sequencing dataset" requiring 5-10 steps, the agent loses direction without an explicit plan. The structured subtask list generated by `planner` serves as an "execution contract" for the agent, with `post_tools` tracking real-time completion status.
+
+### Additional Design Features
 
 - **MemorySaver** persistence for multi-turn conversations (same `thread_id` across turns)
 - **Stuck Detector** with soft-landing mechanism (`force_no_tools` fallback)
@@ -115,8 +164,6 @@ Covers **13 error categories** including script errors, import failures, package
 
 ## Safe Code Execution Sandbox
 
-The platform includes a multi-language code execution sandbox with security controls:
-
 | Feature | Implementation |
 |---------|---------------|
 | **Languages** | Python, Bash, R, JavaScript |
@@ -129,8 +176,6 @@ The platform includes a multi-language code execution sandbox with security cont
 ---
 
 ## Benchmark & Evaluation
-
-The platform includes an automated benchmark framework:
 
 - **Datasets**: LAB-Bench (SuppQA, LitQA2, SeqQA, DbQA, ProtocolQA), TRQA (200 core questions)
 - **Checkpoint Resume**: Save and restore evaluation progress
@@ -165,39 +210,23 @@ The platform includes an automated benchmark framework:
 ### Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/1695963547/OpenClaw-Medical-Skills.git
 cd OpenClaw-Medical-Skills
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Or use conda
-conda env create -f environment.yml
-conda activate openclaw-medical
 ```
 
 ### Configure LLM
 
-Create `llm_local_config.py` (copy from `llm_config.example.py`):
+Create `llm_local_config.py`:
 
 ```python
 LLM_CONFIG = {
-    "model": "deepseek-v4-flash",            # Model name
-    "base_url": "https://api.deepseek.com",  # API endpoint
-    "api_key": "your-api-key-here",          # API key
-    "skill_top_k": 8,                        # Skills to retrieve
-    "max_iterations": 20,                     # Max agent iterations
+    "model": "deepseek-v4-flash",
+    "base_url": "https://api.deepseek.com",
+    "api_key": "your-api-key-here",
+    "skill_top_k": 8,
+    "max_iterations": 20,
 }
-```
-
-**Supported models**: DeepSeek V3/V4, GLM-4.6, and any OpenAI-compatible API.
-
-### Initialize Vector Index
-
-```bash
-# Build ChromaDB index on first run
-python -c "from src.skill_retriever import SkillRetriever; SkillRetriever('skill_registry.json')"
 ```
 
 ### Run
@@ -218,23 +247,17 @@ OpenClaw-Medical-Skills/
 │   ├── agent.py               # LangGraph ReAct agent (5-node state graph)
 │   ├── skill_retriever.py     # ChromaDB semantic retrieval
 │   ├── skill_context.py       # Skill context assembly
-│   ├── tools.py               # 4 tool functions (retrieve/read/execute/status)
+│   ├── tools.py               # 4 tool functions
 │   ├── code_executor.py       # Multi-language sandbox executor
-│   ├── conda_manager.py       # Conda environment management
 │   ├── llm_factory.py         # LLM instance factory
-│   ├── skill_stats.py         # Usage statistics tracker
 │   └── middleware/            # Error resilience framework
-│       ├── error_memory.py        # Error memory + strategy escalator
-│       ├── resilient_executor.py  # Resilient execution wrapper
-│       ├── schema_healer.py       # GraphQL schema self-healing
-│       └── tool_param_adapter.py  # Parameter normalization
-├── skills/                    # 869 skill modules (SKILL.md files)
+│       ├── error_memory.py
+│       ├── resilient_executor.py
+│       ├── schema_healer.py
+│       └── tool_param_adapter.py
+├── skills/                    # 869 skill modules
 ├── scripts/                   # Benchmark & utility scripts
-│   ├── benchmark_test.py      # Concurrent benchmark runner
-│   ├── build_registry.py      # Skill registry builder
-│   ├── skill_audit.py         # Skill validation auditor
-│   └── validate_skill.py      # Single skill validator
-├── TestQuestion/              # Benchmark datasets (LAB-Bench, TRQA)
+├── TestQuestion/              # Benchmark datasets
 └── chroma_db/                 # Pre-built vector index
 ```
 
@@ -256,9 +279,7 @@ OpenClaw-Medical-Skills/
 
 ## Acknowledgments
 
-This project builds upon the [OpenClaw Medical Skills](https://github.com/FreedomIntelligence/OpenClaw-Medical-Skills) skill collection by [FreedomIntelligence](https://github.com/FreedomIntelligence). The original skill library has been extended with a LangGraph-based agent framework, semantic retrieval system, error resilience middleware, and safe code execution sandbox.
-
-Skills are aggregated from 12+ open-source repositories. Full credits available in the original repo.
+Built upon the [OpenClaw Medical Skills](https://github.com/FreedomIntelligence/OpenClaw-Medical-Skills) skill collection by [FreedomIntelligence](https://github.com/FreedomIntelligence). Extended with a LangGraph agent framework, semantic retrieval system, error resilience middleware, and safe code execution sandbox.
 
 ## License
 
